@@ -258,7 +258,7 @@ def cifar10(path,  # pylint: disable=invalid-name
                             use_batch_norm=batch_norm)
 
   if batch_norm:
-    linear_activation = lambda x: tf.nn.relu(snt.BatchNorm()(x))
+    linear_activation = lambda x: tf.nn.relu(snt.BatchNorm()(x, is_training=True))
   else:
     linear_activation = tf.nn.relu
 
