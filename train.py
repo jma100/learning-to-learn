@@ -27,6 +27,7 @@ from tensorflow.contrib.learn.python.learn import monitored_session as ms
 
 import meta
 import util
+import time as tm
 
 flags = tf.flags
 logging = tf.logging
@@ -69,6 +70,23 @@ def main(_):
       second_derivatives=FLAGS.second_derivatives)
   step, update, reset, cost_op, _ = minimize
 
+  # Create histograms of all trainable variables
+       # tf.trainable_variables()
+       # [<tf.Variable 'vars_optimizer/cw_deep_lstm/lstm_1/w_gates:0' shape=(22, 80) dtype=float32_ref>,
+       # <tf.Variable 'vars_optimizer/cw_deep_lstm/lstm_1/b_gates:0' shape=(80,) dtype=float32_ref>,
+       # <tf.Variable 'vars_optimizer/cw_deep_lstm/lstm_2/w_gates:0' shape=(40, 80) dtype=float32_ref>,
+       # <tf.Variable 'vars_optimizer/cw_deep_lstm/lstm_2/b_gates:0' shape=(80,) dtype=float32_ref>,
+       # <tf.Variable 'vars_optimizer/cw_deep_lstm/linear/w:0' shape=(20, 1) dtype=float32_ref>,
+       # <tf.Variable 'vars_optimizer/cw_deep_lstm/linear/b:0' shape=(1,) dtype=float32_ref>]
+  for var in tf.trainable_variables():
+    tf.summary.histogram(var.name[:-2], var)
+
+  #merge all summaries into a single "operation" which we can execute in a session
+  summary_op = tf.summary.merge_all()
+
+  current_time = tm.strftime("%Y_%m_%d-%H:%M:%S")
+  logs_path = os.path.join(FLAGS.save_path, current_time)
+
   with ms.MonitoredSession() as sess:
     # Prevent accidental changes to the graph.
     tf.get_default_graph().finalize()
@@ -76,12 +94,19 @@ def main(_):
     best_evaluation = float("inf")
     total_time = 0
     total_cost = 0
+
+    writer = tf.summary.FileWriter(logs_path,graph=tf.get_default_graph())
+
     for e in xrange(FLAGS.num_epochs):
       # Training.
-      time, cost = util.run_epoch(sess, cost_op, [update, step], reset,
+      time, cost, summary = util.run_epoch(sess, cost_op, summary_op, [update, step], reset,
                                   num_unrolls)
       total_time += time
       total_cost += cost
+
+      # write summary every log period
+      if (e + 1) % FLAGS.log_period == 0:
+        writer.add_summary(summary, e)
 
       # Logging.
       if (e + 1) % FLAGS.log_period == 0:
@@ -110,7 +135,7 @@ def main(_):
           print("Saving meta-optimizer to {}".format(FLAGS.save_path))
           optimizer.save(sess, FLAGS.save_path)
           best_evaluation = eval_cost
-
+    writer.close()
 
 if __name__ == "__main__":
   tf.app.run()

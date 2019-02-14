@@ -359,6 +359,7 @@ class MetaOptimizer(object):
       fx_array = fx_array.write(len_unroll, fx_final)
 
     loss = tf.reduce_sum(fx_array.stack(), name="loss")
+    tf.summary.scalar('loss', loss)
 
     # Reset the state; should be called at the beginning of an epoch.
     with tf.name_scope("reset"):

@@ -135,7 +135,9 @@ def ensemble(problems, weights=None):
 def _xent_loss(output, labels):
   loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output,
                                                         labels=labels)
-  return tf.reduce_mean(loss)
+  final_loss = tf.reduce_mean(loss)
+#  tf.summary.scalar('Cross_Entropy_Loss', final_loss)
+  return final_loss
 
 
 def mnist(layers,  # pylint: disable=invalid-name

@@ -27,13 +27,13 @@ from six.moves import xrange
 import problems
 
 
-def run_epoch(sess, cost_op, ops, reset, num_unrolls):
+def run_epoch(sess, cost_op, summary_op, ops, reset, num_unrolls):
   """Runs one optimization epoch."""
   start = timer()
   sess.run(reset)
   for _ in xrange(num_unrolls):
-    cost = sess.run([cost_op] + ops)[0]
-  return timer() - start, cost
+    cost, summary = sess.run([cost_op, summary_op] + ops)[:2]
+  return timer() - start, cost, summary
 
 
 def print_stats(header, total_error, total_time, n):
