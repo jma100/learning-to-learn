@@ -28,6 +28,7 @@ from tensorflow.contrib.learn.python.learn import monitored_session as ms
 import meta
 import util
 import time as tm
+import datetime
 
 flags = tf.flags
 logging = tf.logging
@@ -96,6 +97,7 @@ def main(_):
     total_cost = 0
 
     writer = tf.summary.FileWriter(logs_path,graph=tf.get_default_graph())
+    global_start_time = tm.time()
 
     for e in xrange(FLAGS.num_epochs):
       # Training.
@@ -107,6 +109,7 @@ def main(_):
       # write summary every log period
       if (e + 1) % FLAGS.log_period == 0:
         writer.add_summary(summary, e)
+        print("Training time so far(HOUR:MIN:SEC):   "+str(datetime.timedelta(seconds=int(tm.time()-global_start_time))))
 
       # Logging.
       if (e + 1) % FLAGS.log_period == 0:
