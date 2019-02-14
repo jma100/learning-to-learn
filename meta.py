@@ -300,10 +300,7 @@ class MetaOptimizer(object):
       for i, (subset, key) in enumerate(zip(subsets, net_keys)):
         net = nets[key]
         with tf.name_scope("state_{}".format(i)):
-          state.append(_nested_variable(
-              [net.initial_state_for_inputs(x[j], dtype=tf.float32)
-               for j in subset],
-              name="state", trainable=False))
+          state.append([net.initial_state_for_inputs(x[j], dtype=tf.float32) for j in subset])	
 
     def update(net, fx, x, state):
       """Parameter and RNN state update."""
@@ -365,16 +362,14 @@ class MetaOptimizer(object):
 
     # Reset the state; should be called at the beginning of an epoch.
     with tf.name_scope("reset"):
-      variables = (nest.flatten(state) +
-                   x + constants)
+      variables = (nest.flatten(_nested_variable(state)) + x + constants)
       # Empty array as part of the reset process.
       reset = [tf.variables_initializer(variables), fx_array.close()]
 
     # Operator to update the parameters and the RNN state after our loop, but
     # during an epoch.
     with tf.name_scope("update"):
-      update = (nest.flatten(_nested_assign(x, x_final)) +
-                nest.flatten(_nested_assign(state, s_final)))
+      update = (nest.flatten(_nested_assign(x, x_final)) + nest.flatten(_nested_assign(_nested_variable(state), s_final)))
 
     # Log internal variables.
     for k, net in nets.items():
