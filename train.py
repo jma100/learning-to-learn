@@ -123,7 +123,7 @@ def main(_):
         eval_cost = 0
         eval_time = 0
         for _ in xrange(FLAGS.evaluation_epochs):
-          time, cost = util.run_epoch(sess, cost_op, [update], reset,
+          time, cost, _ = util.run_epoch(sess, cost_op, summary_op, [update], reset,
                                       num_unrolls)
           eval_time += time
           eval_cost += cost
