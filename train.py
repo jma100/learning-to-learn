@@ -40,6 +40,7 @@ flags.DEFINE_integer("num_epochs", 10000, "Number of training epochs.")
 flags.DEFINE_integer("log_period", 100, "Log period.")
 flags.DEFINE_integer("evaluation_period", 1000, "Evaluation period.")
 flags.DEFINE_integer("evaluation_epochs", 20, "Number of evaluation epochs.")
+flags.DEFINE_string("events_path", None, "Path for saved checkpoints.")
 
 flags.DEFINE_string("problem", "simple", "Type of problem.")
 flags.DEFINE_integer("num_steps", 100,
@@ -58,6 +59,12 @@ def main(_):
       raise ValueError("Folder {} already exists".format(FLAGS.save_path))
     else:
       os.mkdir(FLAGS.save_path)
+
+  if FLAGS.events_path is not None:
+    if os.path.exists(FLAGS.events_path):
+      raise ValueError("Folder {} already exists".format(FLAGS.events_path))
+    else:
+      os.mkdir(FLAGS.events_path)
 
   # Problem.
   problem, net_config, net_assignments = util.get_config(FLAGS.problem)
@@ -86,7 +93,7 @@ def main(_):
   summary_op = tf.summary.merge_all()
 
   current_time = tm.strftime("%Y_%m_%d-%H:%M:%S")
-  logs_path = os.path.join(FLAGS.save_path, current_time)
+  logs_path = os.path.join(FLAGS.events_path, current_time)
 
   with ms.MonitoredSession() as sess:
     # Prevent accidental changes to the graph.
