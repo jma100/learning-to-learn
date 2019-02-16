@@ -49,7 +49,7 @@ def get_net_path(name, path):
 
 def get_default_net_config(name, path):
   return {
-      "net": "CoordinateWiseDeepLSTM",
+      "net": "CoordinateWiseDeepGRU",
       "net_options": {
           "layers": (20, 20),
           "preprocess_name": "LogAndSign",

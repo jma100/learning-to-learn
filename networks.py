@@ -216,6 +216,72 @@ class StandardDeepLSTM(Network):
     batch_size = inputs.get_shape().as_list()[0]
     return self._rnn.initial_state(batch_size, **kwargs)
 
+class StandardDeepGRU(Network):
+  """GRU layers with a Linear layer on top."""
+
+  def __init__(self, output_size, layers, preprocess_name="identity",
+               preprocess_options=None, scale=1.0, initializer=None,
+               name="deep_gru"):
+    """Creates an instance of `StandardDeepLSTM`.
+
+    Args:
+      output_size: Output sizes of the final linear layer.
+      layers: Output sizes of LSTM layers.
+      preprocess_name: Gradient preprocessing class name (in `l2l.preprocess` or
+          tf modules). Default is `tf.identity`.
+      preprocess_options: Gradient preprocessing options.
+      scale: Gradient scaling (default is 1.0).
+      initializer: Variable initializer for linear layer. See `snt.Linear` and
+          `snt.LSTM` docs for more info. This parameter can be a string (e.g.
+          "zeros" will be converted to tf.zeros_initializer).
+      name: Module name.
+    """
+    super(StandardDeepGRU, self).__init__(name=name)
+
+    self._output_size = output_size
+    self._scale = scale
+
+    if hasattr(preprocess, preprocess_name):
+      preprocess_class = getattr(preprocess, preprocess_name)
+      self._preprocess = preprocess_class(**preprocess_options)
+    else:
+      self._preprocess = getattr(tf, preprocess_name)
+
+    with tf.variable_scope(self._template.variable_scope):
+      self._cores = []
+      for i, size in enumerate(layers, start=1):
+        name = "gru_{}".format(i)
+        init = _get_layer_initializers(initializer, name,
+                                       ("w_gates", "b_gates"))
+        self._cores.append(snt.GRU(size, name=name, initializers=init))
+      self._rnn = snt.DeepRNN(self._cores, skip_connections=False,
+                              name="deep_rnn")
+
+      init = _get_layer_initializers(initializer, "linear", ("w", "b"))
+      self._linear = snt.Linear(output_size, name="linear", initializers=init)
+
+  def _build(self, inputs, prev_state):
+    """Connects the `StandardDeepLSTM` module into the graph.
+
+    Args:
+      inputs: 2D `Tensor` ([batch_size, input_size]).
+      prev_state: `DeepRNN` state.
+
+    Returns:
+      `Tensor` shaped as `inputs`.
+    """
+    # Adds preprocessing dimension and preprocess.
+    inputs = self._preprocess(tf.expand_dims(inputs, -1))
+    # Incorporates preprocessing into data dimension.
+    inputs = tf.reshape(inputs, [inputs.get_shape().as_list()[0], -1])
+    output, next_state = self._rnn(inputs, prev_state)
+    return self._linear(output) * self._scale, next_state
+
+  def initial_state_for_inputs(self, inputs, **kwargs):
+    batch_size = inputs.get_shape().as_list()[0]
+    return self._rnn.initial_state(batch_size, **kwargs)
+
+
 
 class CoordinateWiseDeepLSTM(StandardDeepLSTM):
   """Coordinate-wise `DeepLSTM`."""
@@ -254,6 +320,45 @@ class CoordinateWiseDeepLSTM(StandardDeepLSTM):
   def initial_state_for_inputs(self, inputs, **kwargs):
     reshaped_inputs = self._reshape_inputs(inputs)
     return super(CoordinateWiseDeepLSTM, self).initial_state_for_inputs(
+        reshaped_inputs, **kwargs)
+
+class CoordinateWiseDeepGRU(StandardDeepGRU):
+  """Coordinate-wise `DeepGRU`."""
+
+  def __init__(self, name="cw_deep_gru", **kwargs):
+    """Creates an instance of `CoordinateWiseDeepGRU`.
+
+    Args:
+      name: Module name.
+      **kwargs: Additional `DeepLSTM` args.
+    """
+    super(CoordinateWiseDeepGRU, self).__init__(1, name=name, **kwargs)
+
+  def _reshape_inputs(self, inputs):
+    return tf.reshape(inputs, [-1, 1])
+
+  def _build(self, inputs, prev_state):
+    """Connects the CoordinateWiseDeepGRU module into the graph.
+
+    Args:
+      inputs: Arbitrarily shaped `Tensor`.
+      prev_state: `DeepRNN` state.
+
+    Returns:
+      `Tensor` shaped as `inputs`.
+    """
+    input_shape = inputs.get_shape().as_list()
+    reshaped_inputs = self._reshape_inputs(inputs)
+
+    build_fn = super(CoordinateWiseDeepGRU, self)._build
+    output, next_state = build_fn(reshaped_inputs, prev_state)
+
+    # Recover original shape.
+    return tf.reshape(output, input_shape), next_state
+
+  def initial_state_for_inputs(self, inputs, **kwargs):
+    reshaped_inputs = self._reshape_inputs(inputs)
+    return super(CoordinateWiseDeepGRU, self).initial_state_for_inputs(
         reshaped_inputs, **kwargs)
 
 
