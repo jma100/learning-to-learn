@@ -188,7 +188,7 @@ class StandardDeepLSTM(Network):
         name = "lstm_{}".format(i)
         init = _get_layer_initializers(initializer, name,
                                        ("w_gates", "b_gates"))
-        self._cores.append(snt.LSTM(size, name=name, initializers=init))
+        self._cores.append(snt.LSTM(size, name=name, initializers=init, use_peepholes=True))
       self._rnn = snt.DeepRNN(self._cores, skip_connections=False,
                               name="deep_rnn")
 
