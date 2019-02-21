@@ -30,7 +30,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.util import nest
 
 import networks
-
+import numpy as np
 
 def _nested_assign(ref, value):
   """Returns a nested collection of TensorFlow assign operations.
@@ -358,7 +358,12 @@ class MetaOptimizer(object):
       fx_final = _make_with_custom_variables(make_loss, x_final)
       fx_array = fx_array.write(len_unroll, fx_final)
 
-    loss = tf.reduce_sum(fx_array.stack(), name="loss")
+    inter_loss = fx_array.stack()
+    weights = tf.convert_to_tensor([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],dtype=tf.float32)
+#    weights = tf.zeros([21], tf.float32)
+    weighted_loss = tf.tensordot(inter_loss, weights, 1)
+#    loss = tf.reduce_sum(fx_array.stack(), name="loss")
+    loss = tf.reduce_sum(weighted_loss, name="loss")
     tf.summary.scalar('loss', loss)
 
     # Reset the state; should be called at the beginning of an epoch.
