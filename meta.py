@@ -393,6 +393,6 @@ class MetaOptimizer(object):
       namedtuple containing (step, update, reset, fx, x)
     """
     info = self.meta_loss(make_loss, len_unroll, **kwargs)
-    optimizer = tf.train.AdamOptimizer(learning_rate)
+    optimizer = tf.train.RMSPropOptimizer(learning_rate)
     step = optimizer.minimize(info.loss)
     return MetaStep(step, *info[1:])
