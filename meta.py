@@ -147,7 +147,7 @@ def _make_with_custom_variables(func, variables):
   return _wrap_variable_creation(func, custom_getter)
 
 
-MetaLoss = collections.namedtuple("MetaLoss", "loss, update, reset, fx, x")
+MetaLoss = collections.namedtuple("MetaLoss", "regularized_loss, loss, update, reset, fx, x")
 MetaStep = collections.namedtuple("MetaStep", "step, update, reset, fx, x")
 
 
@@ -359,7 +359,16 @@ class MetaOptimizer(object):
       fx_array = fx_array.write(len_unroll, fx_final)
 
     loss = tf.reduce_sum(fx_array.stack(), name="loss")
+    l1_regularizer = tf.contrib.layers.l1_regularizer(
+      scale=0.005, scope=None
+    )
+    weights = tf.trainable_variables() # all vars of your graph
+    regularization_penalty = tf.contrib.layers.apply_regularization(l1_regularizer, weights)
+
+    regularized_loss = loss + regularization_penalty
+
     tf.summary.scalar('loss', loss)
+    tf.summary.scalar('regularized loss', regularized_loss)
 
     # Reset the state; should be called at the beginning of an epoch.
     with tf.name_scope("reset"):
@@ -377,7 +386,7 @@ class MetaOptimizer(object):
       print("Optimizer '{}' variables".format(k))
       print([op.name for op in snt.get_variables_in_module(net)])
 
-    return MetaLoss(loss, update, reset, fx_final, x_final)
+    return MetaLoss(regularized_loss, loss, update, reset, fx_final, x_final)
 
   def meta_minimize(self, make_loss, len_unroll, learning_rate=0.01, **kwargs):
     """Returns an operator minimizing the meta-loss.
@@ -394,5 +403,5 @@ class MetaOptimizer(object):
     """
     info = self.meta_loss(make_loss, len_unroll, **kwargs)
     optimizer = tf.train.AdamOptimizer(learning_rate)
-    step = optimizer.minimize(info.loss)
-    return MetaStep(step, *info[1:])
+    step = optimizer.minimize(info.regularized_loss)
+    return MetaStep(step, *info[2:])
