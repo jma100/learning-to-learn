@@ -29,6 +29,7 @@ import sonnet as snt
 import tensorflow as tf
 
 import preprocess
+from attention import AttentionWithContext, Addition
 
 
 def factory(net, net_options=(), net_path=None):
@@ -189,6 +190,8 @@ class StandardDeepLSTM(Network):
         init = _get_layer_initializers(initializer, name,
                                        ("w_gates", "b_gates"))
         self._cores.append(snt.LSTM(size, name=name, initializers=init))
+#      self._cores.append(AttentionWithContext())
+#      self._cores.append(Addition())
       self._rnn = snt.DeepRNN(self._cores, skip_connections=False,
                               name="deep_rnn")
 
@@ -210,7 +213,7 @@ class StandardDeepLSTM(Network):
     # Incorporates preprocessing into data dimension.
     inputs = tf.reshape(inputs, [inputs.get_shape().as_list()[0], -1])
     output, next_state = self._rnn(inputs, prev_state)
-    return self._linear(output) * self._scale, next_state
+    return self._linear(output) * self._scale, next_state, output
 
   def initial_state_for_inputs(self, inputs, **kwargs):
     batch_size = inputs.get_shape().as_list()[0]
@@ -246,10 +249,10 @@ class CoordinateWiseDeepLSTM(StandardDeepLSTM):
     reshaped_inputs = self._reshape_inputs(inputs)
 
     build_fn = super(CoordinateWiseDeepLSTM, self)._build
-    output, next_state = build_fn(reshaped_inputs, prev_state)
+    output, next_state, hidden_state = build_fn(reshaped_inputs, prev_state)
 
     # Recover original shape.
-    return tf.reshape(output, input_shape), next_state
+    return tf.reshape(output, input_shape), next_state, hidden_state
 
   def initial_state_for_inputs(self, inputs, **kwargs):
     reshaped_inputs = self._reshape_inputs(inputs)

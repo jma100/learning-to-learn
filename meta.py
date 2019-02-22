@@ -315,12 +315,12 @@ class MetaOptimizer(object):
           gradients = [tf.stop_gradient(g) for g in gradients]
 
       with tf.name_scope("deltas"):
-        deltas, state_next = zip(*[net(g, s) for g, s in zip(gradients, state)])
+        deltas, state_next, hidden_state = zip(*[net(g, s) for g, s in zip(gradients, state)])
         state_next = list(state_next)
 
-      return deltas, state_next
+      return deltas, state_next, hidden_state
 
-    def time_step(t, fx_array, x, state):
+    def time_step(t, fx_array, x, state, hidden_states):
       """While loop body."""
       x_next = list(x)
       state_next = []
@@ -332,7 +332,8 @@ class MetaOptimizer(object):
       with tf.name_scope("dx"):
         for subset, key, s_i in zip(subsets, net_keys, state):
           x_i = [x[j] for j in subset]
-          deltas, s_i_next = update(nets[key], fx, x_i, s_i)
+          deltas, s_i_next, hidden_state = update(nets[key], fx, x_i, s_i)
+          import pdb; pdb.set_trace()
 
           for idx, j in enumerate(subset):
             x_next[j] += deltas[idx]
@@ -340,19 +341,23 @@ class MetaOptimizer(object):
 
       with tf.name_scope("t_next"):
         t_next = t + 1
-
-      return t_next, fx_array, x_next, state_next
+      hidden_states = hidden_states.write(t, hidden_state)
+      return t_next, fx_array, x_next, state_next, hidden_states
 
     # Define the while loop.
     fx_array = tf.TensorArray(tf.float32, size=len_unroll + 1,
                               clear_after_read=False)
-    _, fx_array, x_final, s_final = tf.while_loop(
+    hidden_states = tf.TensorArray(tf.float32, size=len_unroll,
+                              clear_after_read=False)
+    _, fx_array, x_final, s_final, hidden_states = tf.while_loop(
         cond=lambda t, *_: t < len_unroll,
         body=time_step,
-        loop_vars=(0, fx_array, x, state),
+        loop_vars=(0, fx_array, x, state, hidden_states),
         parallel_iterations=1,
         swap_memory=True,
         name="unroll")
+
+    import pdb; pdb.set_trace()
 
     with tf.name_scope("fx"):
       fx_final = _make_with_custom_variables(make_loss, x_final)
