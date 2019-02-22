@@ -305,7 +305,12 @@ class MetaOptimizer(object):
     def update(net, fx, x, state):
       """Parameter and RNN state update."""
       with tf.name_scope("gradients"):
-        gradients = tf.gradients(fx, x)
+        l1_regularizer = tf.contrib.layers.l1_regularizer(
+          scale=0.005, scope=None
+        )
+        regularization_penalty = tf.contrib.layers.apply_regularization(l1_regularizer, x)
+        regularized_loss = fx + regularization_penalty
+        gradients = tf.gradients(regularized_loss, x)
 
         # Stopping the gradient here corresponds to what was done in the
         # original L2L NIPS submission. However it looks like things like
