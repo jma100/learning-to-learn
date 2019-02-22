@@ -29,6 +29,7 @@ import meta
 import util
 import time as tm
 import datetime
+import numpy as np
 
 flags = tf.flags
 logging = tf.logging
@@ -105,6 +106,13 @@ def main(_):
 
     writer = tf.summary.FileWriter(logs_path,graph=tf.get_default_graph())
     global_start_time = tm.time()
+    summary_file = open(os.path.join(FLAGS.events_path, "results.txt"), "w") 
+
+    errors = [-5,-4,-3,-2,-1]
+    converged = False
+    eps = 0.01
+    steps = 5
+    step_converged = -1
 
     for e in xrange(FLAGS.num_epochs):
       # Training.
@@ -113,13 +121,13 @@ def main(_):
       total_time += time
       total_cost += cost
 
+
       # write summary every log period
+      # Logging.
       if (e + 1) % FLAGS.log_period == 0:
         writer.add_summary(summary, e)
         print("Training time so far(HOUR:MIN:SEC):   "+str(datetime.timedelta(seconds=int(tm.time()-global_start_time))))
 
-      # Logging.
-      if (e + 1) % FLAGS.log_period == 0:
         util.print_stats("Epoch {}".format(e + 1), total_cost, total_time,
                          FLAGS.log_period)
         total_time = 0
@@ -135,6 +143,28 @@ def main(_):
           eval_time += time
           eval_cost += cost
 
+        # Record classification error
+        error = np.log10(eval_cost / FLAGS.evaluation_epochs)
+        error_summary = tf.Summary()
+        error_summary.value.add(tag='log error (training time)', simple_value=error)
+        writer.add_summary(error_summary, e)
+        summary_file.write("Timestep:"+str(e) + " "+ "Error:"+str(error))
+
+        # Find convergence time step
+        if not converged:
+          errors.append(error)
+          _ = errors.pop(0)
+          total = 0
+          for i in range(-1,steps-1):
+            total += abs(errors[i+1]-errors[i])
+          if total/float(steps) <= eps:
+#        if abs(errors[-1])<0.25:
+            converged = True
+            step_converted = e
+            summary_file.write("Converged at step " + str(e))
+            print('converged at step ' + str(e))
+            print(errors)
+
         util.print_stats("EVALUATION", eval_cost, eval_time,
                          FLAGS.evaluation_epochs)
 
@@ -145,7 +175,11 @@ def main(_):
           print("Saving meta-optimizer to {}".format(FLAGS.save_path))
           optimizer.save(sess, FLAGS.save_path)
           best_evaluation = eval_cost
+    if not converged:
+      summary_file.write("Converged at step " + str(step_converted))
+
     writer.close()
+    summary_file.close()
 
 if __name__ == "__main__":
   tf.app.run()
