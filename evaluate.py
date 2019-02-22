@@ -136,6 +136,10 @@ def main(_):
     util.print_stats("Epoch {}".format(FLAGS.num_epochs), total_cost,
                      total_time, FLAGS.num_epochs)
     print("Training time so far(HOUR:MIN:SEC):   "+str(datetime.timedelta(seconds=int(tm.time()-global_start_time))))
+
+    if not converged:
+      summary_file.write("Converged at step " + str(step_converged))
+
     writer.close()
     summary_file.close()
 
