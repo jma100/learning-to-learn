@@ -25,6 +25,10 @@ from tensorflow.contrib.learn.python.learn import monitored_session as ms
 
 import meta
 import util
+import time as tm
+import datetime
+import numpy as np
+import os
 
 flags = tf.flags
 logging = tf.logging
@@ -35,6 +39,7 @@ flags.DEFINE_string("optimizer", "L2L", "Optimizer.")
 flags.DEFINE_string("path", None, "Path to saved meta-optimizer network.")
 flags.DEFINE_integer("num_epochs", 100, "Number of evaluation epochs.")
 flags.DEFINE_integer("seed", None, "Seed for TensorFlow's RNG.")
+flags.DEFINE_string("eval_path", None, "Path for saved evaluation checkpoints.")
 
 flags.DEFINE_string("problem", "simple", "Type of problem.")
 flags.DEFINE_integer("num_steps", 100,
@@ -45,6 +50,12 @@ flags.DEFINE_float("learning_rate", 0.001, "Learning rate.")
 def main(_):
   # Configuration.
   num_unrolls = FLAGS.num_steps
+
+  if FLAGS.eval_path is not None:
+    if os.path.exists(FLAGS.eval_path):
+      raise ValueError("Folder {} already exists".format(FLAGS.eval_path))
+    else:
+      os.mkdir(FLAGS.eval_path)
 
   if FLAGS.seed:
     tf.set_random_seed(FLAGS.seed)
@@ -72,23 +83,61 @@ def main(_):
   else:
     raise ValueError("{} is not a valid optimizer".format(FLAGS.optimizer))
 
+  current_time = tm.strftime("%Y_%m_%d-%H:%M:%S")
+  logs_path = os.path.join(FLAGS.eval_path, current_time)
+  summary_op = tf.summary.merge_all()
+
   with ms.MonitoredSession() as sess:
     # Prevent accidental changes to the graph.
     tf.get_default_graph().finalize()
 
+    writer = tf.summary.FileWriter(logs_path,graph=tf.get_default_graph())
+    global_start_time = tm.time()
+    summary_file = open(os.path.join(FLAGS.eval_path, "results.txt"), "w") 
+
     total_time = 0
     total_cost = 0
-    for _ in xrange(FLAGS.num_epochs):
+    errors = [-1,1,-1,1,-1]
+    converged = False
+    eps = 0.0001
+    steps = 5
+    step_converged = -1
+    for e in xrange(FLAGS.num_epochs):
       # Training.
-      time, cost = util.run_epoch(sess, cost_op, [update], reset,
+      time, cost, summary = util.run_epoch(sess, cost_op, summary_op, [update], reset,
                                   num_unrolls)
+      writer.add_summary(summary, e)
       total_time += time
       total_cost += cost
+
+      # Record classification error
+      error = np.log10(total_cost / (e+1))
+      error_summary = tf.Summary()
+      error_summary.value.add(tag='classification error', simple_value=error)
+      writer.add_summary(error_summary, e)
+      summary_file.write("Timestep:"+str(e) + " "+ "Error:"+str(error))
+
+      # Find convergence time step
+      if not converged:
+        errors.append(error)
+        _ = errors.pop(0)
+        total = 0
+        for i in range(-1,steps-1):
+          total += abs(errors[i+1]-errors[i])
+#        if total/float(steps) <= eps:
+        if abs(errors[-1])<0.25:
+          converged = True
+          step_converted = e
+          summary_file.write("Converged at step " + str(e))
+          print('converged at step ' + str(e))
+          print(errors)
 
     # Results.
     util.print_stats("Epoch {}".format(FLAGS.num_epochs), total_cost,
                      total_time, FLAGS.num_epochs)
-
+    print("Training time so far(HOUR:MIN:SEC):   "+str(datetime.timedelta(seconds=int(tm.time()-global_start_time))))
+    writer.close()
+    summary_file.close()
 
 if __name__ == "__main__":
   tf.app.run()
