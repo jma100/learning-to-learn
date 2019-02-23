@@ -103,6 +103,10 @@ def get_config(problem_name, path=None):
                                conv_channels=(16, 16, 16),
                                linear_layers=(32,),
                                mode=mode)
+    problem_val = problems.cifar10("cifar10",
+                               conv_channels=(16, 16, 16),
+                               linear_layers=(32,),
+                               mode="val")
     net_config = {"cw": get_default_net_config("cw", path)}
     net_assignments = None
   elif problem_name == "cifar-multi":
@@ -125,4 +129,4 @@ def get_config(problem_name, path=None):
   else:
     raise ValueError("{} is not a valid problem".format(problem_name))
 
-  return problem, net_config, net_assignments
+  return problem, net_config, net_assignments, problem_val

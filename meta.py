@@ -260,6 +260,7 @@ class MetaOptimizer(object):
 
   def meta_loss(self,
                 make_loss,
+                make_loss_val,
                 len_unroll,
                 net_assignments=None,
                 second_derivatives=False):
@@ -358,7 +359,8 @@ class MetaOptimizer(object):
       fx_final = _make_with_custom_variables(make_loss, x_final)
       fx_array = fx_array.write(len_unroll, fx_final)
 
-    loss = tf.reduce_sum(fx_array.stack(), name="loss")
+    loss = _make_with_custom_variables(make_loss_val, x_final)
+#    loss = tf.reduce_sum(fx_array.stack(), name="loss")
     tf.summary.scalar('loss', loss)
 
     # Reset the state; should be called at the beginning of an epoch.
@@ -379,7 +381,7 @@ class MetaOptimizer(object):
 
     return MetaLoss(loss, update, reset, fx_final, x_final)
 
-  def meta_minimize(self, make_loss, len_unroll, learning_rate=0.01, **kwargs):
+  def meta_minimize(self, make_loss, make_loss_val, len_unroll, learning_rate=0.01, **kwargs):
     """Returns an operator minimizing the meta-loss.
 
     Args:
@@ -392,7 +394,7 @@ class MetaOptimizer(object):
     Returns:
       namedtuple containing (step, update, reset, fx, x)
     """
-    info = self.meta_loss(make_loss, len_unroll, **kwargs)
+    info = self.meta_loss(make_loss, make_loss_val, len_unroll, **kwargs)
     optimizer = tf.train.AdamOptimizer(learning_rate)
     step = optimizer.minimize(info.loss)
     return MetaStep(step, *info[1:])

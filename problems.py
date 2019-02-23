@@ -213,9 +213,11 @@ def cifar10(path,  # pylint: disable=invalid-name
     filenames = [os.path.join(path,
                               CIFAR10_FOLDER,
                               "data_batch_{}.bin".format(i))
-                 for i in xrange(1, 6)]
+                 for i in xrange(1, 5)]
   elif mode == "test":
     filenames = [os.path.join(path, "test_batch.bin")]
+  elif mode == "val":
+    filenames = [os.path.join(path, "val_batch.bin")]
   else:
     raise ValueError("Mode {} not recognised".format(mode))
 

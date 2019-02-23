@@ -68,12 +68,12 @@ def main(_):
       os.mkdir(FLAGS.events_path)
 
   # Problem.
-  problem, net_config, net_assignments = util.get_config(FLAGS.problem)
+  problem, net_config, net_assignments, problem_val = util.get_config(FLAGS.problem)
 
   # Optimizer setup.
   optimizer = meta.MetaOptimizer(**net_config)
   minimize = optimizer.meta_minimize(
-      problem, FLAGS.unroll_length,
+      problem, problem_val, FLAGS.unroll_length,
       learning_rate=FLAGS.learning_rate,
       net_assignments=net_assignments,
       second_derivatives=FLAGS.second_derivatives)
