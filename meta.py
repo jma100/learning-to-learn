@@ -141,7 +141,7 @@ def _make_with_custom_variables(func, variables):
     if kwargs["trainable"]:
       return variables.popleft()
     else:
-      kwargs["reuse"] = True
+      kwargs["reuse"] = tf.AUTO_REUSE
       return getter(name, **kwargs)
 
   return _wrap_variable_creation(func, custom_getter)
