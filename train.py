@@ -160,7 +160,7 @@ def main(_):
           if total/float(steps) <= eps:
 #        if abs(errors[-1])<0.25:
             converged = True
-            step_converted = e
+            step_converged = e
             summary_file.write("Converged at step " + str(e))
             print('converged at step ' + str(e))
             print(errors)
@@ -176,7 +176,7 @@ def main(_):
           optimizer.save(sess, FLAGS.save_path)
           best_evaluation = eval_cost
     if not converged:
-      summary_file.write("Converged at step " + str(step_converted))
+      summary_file.write("Converged at step " + str(step_converged))
 
     writer.close()
     summary_file.close()
